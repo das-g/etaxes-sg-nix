@@ -1,68 +1,70 @@
 {
-  description = "A very basic flake";
+  description = "eTaxes Kanton St.Gallen Privatpersonen";
 
   inputs.nixpkgs.url = "nixpkgs/nixos-21.11";
 
-  outputs = { self, nixpkgs }: {
-    packages.x86_64-linux.etaxes-ch-sg-2021 = let
-      pkgs = import nixpkgs { system = "x86_64-linux"; };
+  outputs = { self, nixpkgs }:
+    let platform = "x86_64-linux";
+    in {
+      packages.${platform} = let
+        mkETaxesFor = { pkgs, year, version, src }:
+          (pkgs.stdenv.mkDerivation {
+            pname = "etaxes-ch-sg-${year}";
+            inherit version;
+            src = pkgs.fetchurl (src);
 
-      responseVarfile = pkgs.writeTextFile {
-        name = "response.varfile";
-        text = ''
-          sys.installationDir=INSTALLDIR/lib/etaxes-ch-sg-2021
-          sys.symlinkDir=INSTALLDIR/bin
-        '';
-      };
-      fontsConf =
-        pkgs.makeFontsConf { fontDirectories = [ pkgs.dejavu_fonts.minimal ]; };
+            phases = [ "installPhase" ];
+            installPhase = let
+              fontsConf = pkgs.makeFontsConf {
+                fontDirectories = [ pkgs.dejavu_fonts.minimal ];
+              };
+            in ''
+              mkdir -p $out/lib/etaxes
 
-    in pkgs.stdenv.mkDerivation rec {
-      pname = "etaxes-ch-sg-2021";
-      version = "1.5.0";
+              # the installer wants to use its internal JRE
+              # disable this. The extra spaces are needed because the installer carries
+              # a binary payload, so should not change in size
+              sed -e 's/^if \[ -f jre.tar.gz/if false          /' $src > installer
+              chmod a+x installer
 
-      src = pkgs.fetchurl ({
-        url =
-          "https://steuersoftware.sg.oca.ch/Steuern_2021/SGnP2021_installieren_unix_64bit.sh";
-        sha256 = "sha256-NdCiBV9O5BBmyjtXYClOsnN2Qm5hxMQnU7h/UjFRrAE=";
-      });
+              cat <<__EOF__ > response.varfile
+              sys.installationDir=$out/lib/etaxes
+              sys.symlinkDir=$out/bin
+              __EOF__
 
-      nativeBuildInputs = [ pkgs.makeWrapper ];
-      phases = [ "installPhase" ];
+              export HOME=`pwd`
+              export INSTALL4J_JAVA_HOME=${pkgs.jre8.home}
+              export FONTCONFIG_FILE=${fontsConf}
+              bash -ic './installer -q -varfile response.varfile'
 
-      installPhase = ''
-        mkdir -p $out/lib/${pname}
+              mkdir -p $out/share/applications
+              for i in $out/lib/etaxes/*.desktop; do
+                name=$(basename "$i")
+                sed -e 's|/lib/etaxes/bin|/bin|' "$i" > "$out/share/applications/$name"
+              done
+              rm -r $out/lib/etaxes/*.desktop $out/lib/etaxes/uninstall
+            '';
 
-        # the installer wants to use its internal JRE
-        # disable this. The extra spaces are needed because the installer carries
-        # a binary payload, so should not change in size
-        sed -e 's/^if \[ -f jre.tar.gz/if false          /' $src > installer
-        chmod a+x installer
-
-        sed -e "s|INSTALLDIR|$out|" ${responseVarfile} > response.varfile
-
-        export HOME=`pwd`
-        export INSTALL4J_JAVA_HOME=${pkgs.jre8.home}
-        export FONTCONFIG_FILE=${fontsConf}
-        bash -ic './installer -q -varfile response.varfile'
-
-        mkdir -p $out/share/applications
-        for i in $out/lib/etaxes-ch-sg-2021/*.desktop; do
-          name=$(basename "$i")
-          sed -e 's|/lib/etaxes-ch-sg-2021/bin|/bin|' "$i" > "$out/share/applications/$name"
-        done
-        rm -r $out/lib/etaxes-ch-sg-2021/*.desktop $out/lib/etaxes-ch-sg-2021/uninstall
-      '';
-
-      meta = {
-        description = "eTaxes Kanton St.Gallen Privatperson 2022";
-        homepage =
-          "https://www.sg.ch/content/sgch/steuern-finanzen/steuern/elektronische-steuererklaerung/etaxes-privatpersonen.html";
-        license = nixpkgs.lib.licenses.unfreeRedistributable;
-
-        maintainers = [ nixpkgs.lib.maintainers.fabianhauser ];
-        platforms = [ "x86_64-linux" ];
+            meta = {
+              description = "eTaxes Kanton St.Gallen Privatpersonen ${year}";
+              homepage =
+                "https://www.sg.ch/content/sgch/steuern-finanzen/steuern/elektronische-steuererklaerung/etaxes-privatpersonen.html";
+              license = nixpkgs.lib.licenses.unfreeRedistributable;
+              maintainers = [ nixpkgs.lib.maintainers.fabianhauser ];
+              platforms = [ platform ];
+            };
+          });
+      in {
+        etaxes-ch-sg-2021 = mkETaxesFor {
+          pkgs = import nixpkgs { system = platform; };
+          year = "2021";
+          version = "1.5.0";
+          src = {
+            url =
+              "https://steuersoftware.sg.oca.ch/Steuern_2021/SGnP2021_installieren_unix_64bit.sh";
+            sha256 = "sha256-NdCiBV9O5BBmyjtXYClOsnN2Qm5hxMQnU7h/UjFRrAE=";
+          };
+        };
       };
     };
-  };
 }
