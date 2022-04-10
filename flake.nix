@@ -56,7 +56,7 @@
           });
       in {
         etaxes-ch-sg-2021 = mkETaxesFor {
-          pkgs = import nixpkgs { system = platform; };
+          pkgs = import nixpkgs { system = platform; config = { allowUnfreePredicate = pkg: (nixpkgs.lib.getName pkg) == "etaxes-ch-sg-2021"; }; };
           year = "2021";
           version = "1.5.0";
           src = {
