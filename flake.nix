@@ -1,15 +1,18 @@
 {
   description = "eTaxes Kanton St.Gallen Privatpersonen";
 
-  inputs.nixpkgs.url = "nixpkgs/nixos-21.11";
+  inputs.nixos2111.url = "nixpkgs/nixos-21.11";
+  inputs.nixos2211.url = "nixpkgs/nixos-22.11";
 
-  outputs = { self, nixpkgs }:
-    let platform = "x86_64-linux";
+  outputs = { self, nixos2111, nixos2211 }:
+    let
+      platform = "x86_64-linux";
+      packageName = year: "etaxes-ch-sg-${builtins.toString year}";
     in {
       packages.${platform} = let
-        mkETaxesFor = { pkgs, year, version, src }:
+        mkETaxesFor = { pkgs, year, version, src, lib }:
           (pkgs.stdenv.mkDerivation {
-            pname = "etaxes-ch-sg-${year}";
+            pname = packageName year;
             inherit version;
             src = pkgs.fetchurl (src);
 
@@ -46,25 +49,53 @@
             '';
 
             meta = {
-              description = "eTaxes Kanton St.Gallen Privatpersonen ${year}";
+              description = "eTaxes Kanton St.Gallen Privatpersonen ${
+                  builtins.toString year
+                }";
               homepage =
                 "https://www.sg.ch/content/sgch/steuern-finanzen/steuern/elektronische-steuererklaerung/etaxes-privatpersonen.html";
-              license = nixpkgs.lib.licenses.unfreeRedistributable;
-              maintainers = [ nixpkgs.lib.maintainers.fabianhauser ];
+              license = lib.licenses.unfreeRedistributable;
+              maintainers = [ lib.maintainers.fabianhauser ];
               platforms = [ platform ];
+              mainProgram = "Steuer St.Gallen ${builtins.toString year} nP";
             };
           });
+        mkAllowUnfreePkg = year: {
+          allowUnfreePredicate = pkg:
+            (nixos2111.lib.getName pkg) == (packageName year);
+        };
+        defaultUrl = year: "https://steuersoftware.sg.oca.ch/Steuern_${builtins.toString year}/SGnP${builtins.toString year}_installieren_unix_64bit.sh";
       in {
-        etaxes-ch-sg-2021 = mkETaxesFor {
-          pkgs = import nixpkgs { system = platform; config = { allowUnfreePredicate = pkg: (nixpkgs.lib.getName pkg) == "etaxes-ch-sg-2021"; }; };
-          year = "2021";
+        ${packageName 2021} = let year = 2021;
+        in mkETaxesFor {
+          pkgs = import nixos2111 {
+            system = platform;
+            config = mkAllowUnfreePkg year;
+          };
+          lib = nixos2111.lib;
+          inherit year;
           version = "1.5.0";
           src = {
-            url =
-              "https://steuersoftware.sg.oca.ch/Steuern_2021/SGnP2021_installieren_unix_64bit.sh";
+            url = defaultUrl 2021;
             sha256 = "sha256-NdCiBV9O5BBmyjtXYClOsnN2Qm5hxMQnU7h/UjFRrAE=";
           };
         };
+        ${packageName 2022} = let year = 2022;
+        in mkETaxesFor {
+          pkgs = import nixos2211 {
+            system = platform;
+            config = mkAllowUnfreePkg year;
+          };
+          lib = nixos2211.lib;
+          inherit year;
+          version = "1.1.0";
+          src = {
+            url = defaultUrl 2022;
+            sha256 = "sha256-0RgLNneVZtyUrp1/108hchkdO5kM8QWrtHy/atpmeYg=";
+          };
+        };
+
+      default = self.packages.${platform}.${packageName 2022};
       };
     };
 }
