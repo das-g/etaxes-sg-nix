@@ -3,8 +3,9 @@
 
   inputs.nixos2111.url = "nixpkgs/nixos-21.11";
   inputs.nixos2211.url = "nixpkgs/nixos-22.11";
+  inputs.nixos2405.url = "nixpkgs/nixos-24.05";
 
-  outputs = { self, nixos2111, nixos2211 }:
+  outputs = { self, nixos2111, nixos2211, nixos2405 }:
     let
       platform = "x86_64-linux";
       packageName = year: "etaxes-ch-sg-${builtins.toString year}";
@@ -36,7 +37,7 @@
               __EOF__
 
               export HOME=`pwd`
-              export INSTALL4J_JAVA_HOME=${pkgs.jre8.home}
+              export INSTALL4J_JAVA_HOME=${pkgs.jre.home}
               export FONTCONFIG_FILE=${fontsConf}
               bash -ic './installer -q -varfile response.varfile'
 
@@ -92,6 +93,20 @@
           src = {
             url = defaultUrl 2022;
             sha256 = "sha256-BZfw/nmtl9+QJ2c2rtvq0fKnfLqR9rSxMUIsDD7JhLg=";
+          };
+        };
+        ${packageName 2023} = let year = 2023;
+        in mkETaxesFor {
+          pkgs = import nixos2405 {
+            system = platform;
+            config = mkAllowUnfreePkg year;
+          };
+          lib = nixos2405.lib;
+          inherit year;
+          version = "1.2.0";
+          src = {
+            url = defaultUrl 2023;
+            sha256 = "sha256-zNMmcPjjexnkc945cYZv2BH1ef/LLQ6hFt3kuz8nY+Y=";
           };
         };
 
