@@ -103,7 +103,7 @@
           };
           lib = nixos2405.lib;
           inherit year;
-          version = "1.2.0";
+          version = "1.4.0";
           src = {
             url = defaultUrl 2023;
             sha256 = "sha256-zNMmcPjjexnkc945cYZv2BH1ef/LLQ6hFt3kuz8nY+Y=";
