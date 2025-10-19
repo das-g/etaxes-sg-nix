@@ -4,8 +4,9 @@
   inputs.nixos2111.url = "nixpkgs/nixos-21.11";
   inputs.nixos2211.url = "nixpkgs/nixos-22.11";
   inputs.nixos2405.url = "nixpkgs/nixos-24.05";
+  inputs.nixos-unstable.url = "nixpkgs/nixos-unstable";
 
-  outputs = { self, nixos2111, nixos2211, nixos2405 }:
+  outputs = { self, nixos2111, nixos2211, nixos2405, nixos-unstable }:
     let
       platform = "x86_64-linux";
       packageName = year: "etaxes-ch-sg-${builtins.toString year}";
@@ -107,6 +108,20 @@
           src = {
             url = defaultUrl 2023;
             sha256 = "sha256-zNMmcPjjexnkc945cYZv2BH1ef/LLQ6hFt3kuz8nY+Y=";
+          };
+        };
+        ${packageName 2024} = let year = 2024;
+        in mkETaxesFor {
+          pkgs = import nixos-unstable {
+            system = platform;
+            config = mkAllowUnfreePkg year;
+          };
+          lib = nixos-unstable.lib;
+          inherit year;
+          version = "1.2.0";
+          src = {
+            url = defaultUrl 2024;
+            sha256 = "sha256-KgpzTN4ZIg6Udiar11QhxIfcWj1nj/cA8P/kzEwgnbE=";
           };
         };
 
